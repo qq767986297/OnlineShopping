@@ -10,8 +10,10 @@ import android.util.Log;
 import android.widget.ImageView;
 
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.Map;
 
 /**
  * Time: 2020/2/20
@@ -49,54 +51,10 @@ public class NetUtils {
         }else {
             return false;
         }
-    }
-    //获取网络图片方法
-    public void getBitmap(final String path, final ImageView iv){
-        //开启线程
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    URL url = new URL(path);
-                    //连接
-                    HttpURLConnection conn= (HttpURLConnection) url.openConnection();
-                    //GET请求
-                    conn.setRequestMethod("GET");
-                    //设置连接超时为5秒钟，
-                    conn.setConnectTimeout(5000);
-                    // 读取超时为5秒钟
-                    conn.setReadTimeout(5000);
-                    //获取响应吗
-                    int responseCode = conn.getResponseCode();
-                    //判断
-                    if(responseCode==200){
-                        //获取流
-                        final InputStream inputStream = conn.getInputStream();
-                        //转换为bitmap
-                        final Bitmap bitmap = BitmapFactory.decodeStream(inputStream);
-                        //关闭流
-                        inputStream.close();
-                        //利用handler更新
-                        handler.post(new Runnable() {
-                            @Override
-                            public void run() {
-                                //设置图片
-                                iv.setImageBitmap(bitmap);
 
-                            }
-                        });
-                    }
-                } catch (Exception e) {
-                    e.printStackTrace();
-                    Log.i("xxx",e.toString()+"");
-                }
-
-
-            }
-        }).start();
     }
     //获取Json数据方法
-    public void getJson(final String path, final ICallBack iCallBack){
+    public void getUserReg(final String path, final Map<String,String>map, final ICallBack iCallBack){
         //开启线程
         new Thread(new Runnable() {
             @Override
@@ -106,11 +64,31 @@ public class NetUtils {
                     //连接
                     HttpURLConnection conn= (HttpURLConnection) url.openConnection();
                     //GET请求
-                    conn.setRequestMethod("GET");
+                    conn.setRequestMethod("POST");
                     //设置连接超时为5秒钟，
                     conn.setConnectTimeout(5000);
                     // 读取超时为5秒钟
                     conn.setReadTimeout(5000);
+                    //允许输出
+                    conn.setDoOutput(true);
+                    //允许输入
+                    conn.setDoInput(true);
+                    StringBuilder builder = new StringBuilder();
+                    //遍历集合
+                    for (Map.Entry<String,String>entry:map.entrySet()){
+                        String key = entry.getKey();
+                        String value = entry.getValue();
+                        builder.append(key+"="+value+"&");
+                    }
+                    String user = builder.toString();
+                    user=user.substring(0,user.length()-1);
+                    Log.i("test",""+user);
+                    //获取输出流
+                    OutputStream ops = conn.getOutputStream();
+                    //转换成字节
+                    ops.write(user.getBytes());
+                    ops.flush();
+                    conn.connect();
                     //获取响应吗
                     int responseCode = conn.getResponseCode();
                     //判断
@@ -136,14 +114,16 @@ public class NetUtils {
                         handler.post(new Runnable() {
                             @Override
                             public void run() {
-                                iCallBack.onSuccess(json);
-
+                                if(iCallBack!=null) {
+                                    iCallBack.onSuccess(json);
+                                }
                             }
                         });
                     }else {
                         handler.post(new Runnable() {
                             @Override
                             public void run() {
+                                if(iCallBack!=null)
                                 iCallBack.onError("网络请求失败");
 
                             }
